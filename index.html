@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health Reports</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: single column lab-report sheet. Patient strip, results table with flag pills, add-report form below. */
+  :root {
+    --bg: #f4f7f7;
+    --surface: #ffffff;
+    --fg: #17292b;
+    --muted: #5b6e70;
+    --line: #d9e3e3;
+    --accent: #0f6b6e;
+    --accent-fg: #ffffff;
+    --row-alt: #f7fafa;
+    --ok-bg: #e2f3e8;   --ok-fg: #17653a;
+    --high-bg: #fde4e1; --high-fg: #a3241a;
+    --low-bg: #fdf0d2;  --low-fg: #8a5600;
+    --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1a1b; --surface: #152426; --fg: #e3eeee; --muted: #93a8a9; --line: #26393b;
+      --accent: #4fc0c3; --accent-fg: #07201f; --row-alt: #182a2c;
+      --ok-bg: #15382a; --ok-fg: #7fd8a4;
+      --high-bg: #451c19; --high-fg: #ff9d92;
+      --low-bg: #3f3011; --low-fg: #f2c46a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1a1b; --surface: #152426; --fg: #e3eeee; --muted: #93a8a9; --line: #26393b;
+    --accent: #4fc0c3; --accent-fg: #07201f; --row-alt: #182a2c;
+    --ok-bg: #15382a; --ok-fg: #7fd8a4;
+    --high-bg: #451c19; --high-fg: #ff9d92;
+    --low-bg: #3f3011; --low-fg: #f2c46a;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .page { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 10px; }
+
+  .patient {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 8px 32px;
+  }
+  .patient div { display: flex; flex-direction: column; min-width: 0; }
+  .patient span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .patient b { font-weight: 600; font-size: 16px; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  th {
+    text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td { padding: 9px 14px; font-size: 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:nth-child(even) td { background: var(--row-alt); }
+  td.num { font-family: var(--font-data); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.test { font-weight: 500; }
+  td.muted { color: var(--muted); }
+
+  .pill {
+    display: inline-block; min-width: 44px; text-align: center; padding: 2px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  }
+  .pill.ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .pill.high { background: var(--high-bg); color: var(--high-fg); }
+  .pill.low { background: var(--low-bg); color: var(--low-fg); }
+  .pill.none { color: var(--muted); }
+
+  .form {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  input {
+    font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 10px; min-width: 0; width: 100%; box-sizing: border-box;
+  }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+  button {
+    font: inherit; font-weight: 600; background: var(--accent); color: var(--accent-fg);
+    border: 0; border-radius: 6px; padding: 9px 20px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  .note { font-size: 13px; color: var(--muted); margin: 0; }
+  .error { font-size: 13px; color: var(--high-fg); margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <h1>Health Reports</h1>
+
+  <div class="patient">
+    <div><span>Patient</span><b>Jane Sample</b></div>
+    <div><span>Born</span><b>01/01/1990</b></div>
+    <div><span>Sex</span><b>F</b></div>
+    <div><span>Blood</span><b>O+</b></div>
+  </div>
+
+  <section>
+    <h2>All Reports</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Doctor</th><th>Test</th><th>Result</th><th>Normal Range</th><th>Flag</th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Add Report</h2>
+    <form class="form" id="add-form">
+      <div class="field"><label for="a-date">Date</label><input id="a-date" type="date"></div>
+      <div class="field"><label for="a-doc">Doctor</label><input id="a-doc"></div>
+      <div class="field"><label for="a-test">Test</label><input id="a-test"></div>
+      <div class="field"><label for="a-res">Result</label><input id="a-res"></div>
+      <div class="field"><label for="a-range">Range</label><input id="a-range"></div>
+      <div class="field"><label for="a-flag">Flag</label><input id="a-flag" placeholder="HIGH / LOW / OK"></div>
+      <div class="actions">
+        <button type="submit">Add report</button>
+        <p class="error" id="err" hidden>Enter a date and a test name.</p>
+        <p class="note">Not saved anywhere. Refresh and it's gone.</p>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script>
+var reports = [
+  ["2026-01-05","Dr. Alex Example","Hemoglobin","13.1 g/dL","12 - 16","OK"],
+  ["2026-01-05","Dr. Alex Example","WBC","7.2 K/uL","4.5 - 11","OK"],
+  ["2026-01-05","Dr. Alex Example","Platelets","251 K/uL","150 - 400","OK"],
+  ["2026-01-05","Dr. Alex Example","Total Cholesterol","214 mg/dL","< 200","HIGH"],
+  ["2026-01-05","Dr. Alex Example","HDL","41 mg/dL","40 - 59","OK"],
+  ["2026-01-05","Dr. Alex Example","LDL","138 mg/dL","< 130","HIGH"],
+  ["2026-01-05","Dr. Alex Example","Triglycerides","120 mg/dL","< 150","OK"],
+  ["2026-02-12","Dr. Sam Placeholder","ALT","47 U/L","0 - 35","HIGH"],
+  ["2026-02-12","Dr. Sam Placeholder","AST","30 U/L","14 - 36","OK"],
+  ["2026-02-12","Dr. Sam Placeholder","ALP","112 U/L","39 - 118","OK"],
+  ["2026-02-12","Dr. Sam Placeholder","Albumin","4.4 g/dL","3.5 - 5.0","OK"],
+  ["2026-02-12","Dr. Sam Placeholder","Bilirubin (Total)","0.7 mg/dL","0.2 - 1.3","OK"],
+  ["2026-03-20","Dr. Pat Testcase","TSH","2.1 uIU/mL","0.35 - 4.9","OK"],
+  ["2026-03-20","Dr. Pat Testcase","Vitamin D","18 ng/mL","30 - 100","LOW"],
+  ["2026-03-20","Dr. Pat Testcase","Vitamin B12","520 pg/mL","239 - 931","OK"],
+  ["2026-03-20","Dr. Pat Testcase","Ferritin","28 ng/mL","10 - 120","OK"],
+  ["2026-04-02","Dr. Alex Example","Creatinine","0.8 mg/dL","0.52 - 1.04","OK"],
+  ["2026-04-02","Dr. Alex Example","Sodium","140 mmol/L","137 - 145","OK"],
+  ["2026-04-02","Dr. Alex Example","Potassium","4.2 mmol/L","3.5 - 5.1","OK"],
+  ["2026-04-02","Dr. Alex Example","HbA1c","5.4 %","< 5.7","OK"],
+  ["2026-05-14","Dr. Sam Placeholder","Chest X-Ray","No acute findings (sample text)","-","-"],
+  ["2026-05-14","Dr. Sam Placeholder","Abdominal Ultrasound","Sample finding: mild change noted (fake)","-","-"]
+];
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function pill(flag) {
+  var f = String(flag || "").trim().toUpperCase();
+  if (!f || f === "-") return '<span class="pill none">-</span>';
+  var cls = f === "OK" ? "ok" : f === "HIGH" ? "high" : f === "LOW" ? "low" : "none";
+  return '<span class="pill ' + cls + '">' + esc(f) + "</span>";
+}
+
+function render() {
+  var html = "";
+  for (var i = 0; i < reports.length; i++) {
+    var r = reports[i];
+    var isText = r[4] === "-";
+    html += "<tr>" +
+      '<td class="num">' + esc(r[0]) + "</td>" +
+      '<td class="muted">' + esc(r[1]) + "</td>" +
+      '<td class="test">' + esc(r[2]) + "</td>" +
+      "<td" + (isText ? "" : ' class="num"') + ">" + esc(r[3]) + "</td>" +
+      '<td class="num muted">' + esc(r[4]) + "</td>" +
+      "<td>" + pill(r[5]) + "</td></tr>";
+  }
+  document.getElementById("rows").innerHTML = html;
+}
+
+function addRow() {
+  var v = function (id) { return document.getElementById(id).value; };
+  var err = document.getElementById("err");
+  if (!v("a-date") || !v("a-test")) { err.hidden = false; return; }
+  err.hidden = true;
+  reports.push([v("a-date"), v("a-doc"), v("a-test"), v("a-res"), v("a-range"), v("a-flag")]);
+  render();
+  document.getElementById("add-form").reset();
+}
+
+document.getElementById("add-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  addRow();
+});
+
+render();
+</script>
+</body>
+</html>
